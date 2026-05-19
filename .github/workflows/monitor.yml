@@ -64,51 +64,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 7. Send email via Gmail SMTP (if changes detected) ──────────────────
+      # ── 7. Send email via Resend API ─────────────────────────────────────────
       - name: Send notification email
         if: steps.result.outputs.has_changes == 'True' || github.event.inputs.force_notify == 'true'
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          subject: ${{ steps.result.outputs.subject }}
-          to: ${{ secrets.NOTIFY_EMAIL }}
-          from: "AI Act Monitor <${{ secrets.MAIL_USERNAME }}>"
-          # Send body as markdown converted to HTML
-          html_body: |
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <meta charset="utf-8">
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                     line-height: 1.6; color: #333; max-width: 680px; margin: 0 auto; padding: 20px; }
-              h1 { color: #1a56db; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-              h2 { color: #374151; margin-top: 28px; }
-              table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-              td, th { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
-              th { background: #f3f4f6; }
-              a { color: #1a56db; }
-              .badge { display: inline-block; padding: 2px 8px; border-radius: 4px;
-                       font-size: 0.85em; font-weight: 600; }
-              .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb;
-                        font-size: 0.85em; color: #6b7280; }
-            </style>
-            </head>
-            <body>
-            <h1>🔔 EU AI Act 协调标准状态变化通知</h1>
-            <p>监控网站 <a href="https://ai-act-standards.com/">ai-act-standards.com</a> 检测到标准状态更新。</p>
-            <p>详细变更内容请查看以下报告，或直接访问 <a href="https://ai-act-standards.com/">标准地图</a>。</p>
-            <pre style="background:#f9fafb;padding:16px;border-radius:6px;border:1px solid #e5e7eb;
-                        white-space:pre-wrap;font-size:0.9em;">${{ steps.read_body.outputs.body }}</pre>
-            <div class="footer">此邮件由 GitHub Actions 自动发送，每6小时检查一次。</div>
-            </body>
-            </html>
+        run: |
+          python - <<'EOF'
+          import json, os, urllib.request, urllib.error
 
-      # ── 8. Also save email body as artifact for debugging ───────────────────
+          with open("check_result.json") as f:
+              result = json.load(f)
+
+          subject = result.get("email_subject", "AI Act 标准变化通知")
+          body_text = result.get("email_body", "")
+
+          payload = json.dumps({
+              "from": "AI Act Monitor <onboarding@resend.dev>",
+              "to": [os.environ["NOTIFY_EMAIL"]],
+              "subject": subject,
+              "text": body_text,
+          }).encode()
+
+          req = urllib.request.Request(
+              "https://api.resend.com/emails",
+              data=payload,
+              headers={
+                  "Authorization": f"Bearer {os.environ['RESEND_API_KEY']}",
+                  "Content-Type": "application/json",
+              },
+          )
+          try:
+              with urllib.request.urlopen(req) as resp:
+                  print("Email sent:", resp.read().decode())
+          except urllib.error.HTTPError as e:
+              print("Failed:", e.code, e.read().decode())
+              raise
+          EOF
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+
+      # ── 8. Upload check result as artifact for debugging ────────────────────
       - name: Upload check result as artifact
         if: always()
         uses: actions/upload-artifact@v4
