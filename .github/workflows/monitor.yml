@@ -1,1 +1,118 @@
+name: Monitor EU AI Act Standards
 
+on:
+  schedule:
+    # Every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC
+    - cron: "0 0,6,12,18 * * *"
+  workflow_dispatch:
+    # Allow manual trigger for testing
+    inputs:
+      force_notify:
+        description: "Force send notification even if no changes (for testing)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write  # needed to commit snapshot updates
+
+jobs:
+  check-standards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # ── 1. Checkout repo (including stored snapshots) ──────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ── 2. Set up Python ────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install dependencies ─────────────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4
+
+      # ── 4. Run the monitor script ───────────────────────────────────────────
+      - name: Check standards page for changes
+        id: check
+        run: python scripts/check_standards.py
+
+      # ── 5. Read result ──────────────────────────────────────────────────────
+      - name: Read check result
+        id: result
+        run: |
+          HAS_CHANGES=$(python -c "import json; d=json.load(open('check_result.json')); print(d['has_changes'])")
+          SUBJECT=$(python -c "import json; d=json.load(open('check_result.json')); print(d.get('email_subject',''))")
+          echo "has_changes=$HAS_CHANGES" >> $GITHUB_OUTPUT
+          echo "subject=$SUBJECT" >> $GITHUB_OUTPUT
+
+      # ── 6. Commit updated snapshot back to repo ─────────────────────────────
+      - name: Commit snapshot update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add snapshots/
+          git diff --cached --quiet || git commit -m "chore: update standards snapshot [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 7. Send email via Gmail SMTP (if changes detected) ──────────────────
+      - name: Send notification email
+        if: steps.result.outputs.has_changes == 'True' || github.event.inputs.force_notify == 'true'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: ${{ steps.result.outputs.subject }}
+          to: ${{ secrets.NOTIFY_EMAIL }}
+          from: "AI Act Monitor <${{ secrets.MAIL_USERNAME }}>"
+          # Send body as markdown converted to HTML
+          html_body: |
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                     line-height: 1.6; color: #333; max-width: 680px; margin: 0 auto; padding: 20px; }
+              h1 { color: #1a56db; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+              h2 { color: #374151; margin-top: 28px; }
+              table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+              td, th { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+              th { background: #f3f4f6; }
+              a { color: #1a56db; }
+              .badge { display: inline-block; padding: 2px 8px; border-radius: 4px;
+                       font-size: 0.85em; font-weight: 600; }
+              .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb;
+                        font-size: 0.85em; color: #6b7280; }
+            </style>
+            </head>
+            <body>
+            <h1>🔔 EU AI Act 协调标准状态变化通知</h1>
+            <p>监控网站 <a href="https://ai-act-standards.com/">ai-act-standards.com</a> 检测到标准状态更新。</p>
+            <p>详细变更内容请查看以下报告，或直接访问 <a href="https://ai-act-standards.com/">标准地图</a>。</p>
+            <pre style="background:#f9fafb;padding:16px;border-radius:6px;border:1px solid #e5e7eb;
+                        white-space:pre-wrap;font-size:0.9em;">${{ steps.read_body.outputs.body }}</pre>
+            <div class="footer">此邮件由 GitHub Actions 自动发送，每6小时检查一次。</div>
+            </body>
+            </html>
+
+      # ── 8. Also save email body as artifact for debugging ───────────────────
+      - name: Upload check result as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-result-${{ github.run_number }}
+          path: check_result.json
+          retention-days: 30
