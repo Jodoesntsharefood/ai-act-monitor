@@ -1,0 +1,27 @@
+{
+  "fetched_at": "2026-05-19T09:57:26.005760+00:00",
+  "stage_counts": {
+    "stage_10": 2,
+    "stage_20": 4,
+    "stage_40": 1,
+    "stage_50": 1,
+    "stage_60_published": 0,
+    "cited_ojeu": 0,
+    "total_standards": 7
+  },
+  "changelog": [],
+  "page_hash": "3750bdb44c9c085f",
+  "standards_mentioned": [
+    "CEN-CENELEC standards 7 Total Standards Incl",
+    "CEN-CENELEC",
+    "CEN-CENELEC in this case",
+    "CEN and CENELEC. It summarises which standar",
+    "prEN 18286 and project scopes published by CE",
+    "CEN-CENELEC JTC 21. The standards are design",
+    "CEN-CENELEC that I should know about",
+    "ISO/IEC JTC 1/SC 42 develops international A",
+    "CEN-CENELEC. Additionally",
+    "CEN-CENELEC AI Act standards may reach publi",
+    "CEN-CENELEC JTC 21 develops AI standards wit"
+  ]
+}
