@@ -70,9 +70,8 @@ jobs:
         run: python scripts/send_email.py
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          TO_EMAILS: ${{ secrets.TO_EMAILS }}   # 改这里
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
 
-          
       # ── 8. Upload check result as artifact for debugging ────────────────────
       - name: Upload check result as artifact
         if: always()
