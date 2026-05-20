@@ -27,3 +27,5 @@ try:
 except urllib.error.HTTPError as e:
     print("Failed:", e.code, e.read().decode())
     raise
+print("Sending to:", os.environ["NOTIFY_EMAIL"])
+print("API Key prefix:", os.environ["RESEND_API_KEY"][:8])  # 只打印前8位
