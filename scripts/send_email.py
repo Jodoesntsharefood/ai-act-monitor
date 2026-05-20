@@ -1,4 +1,5 @@
-import json, os, urllib.request, urllib.error
+import json, os
+import requests
 
 with open("check_result.json") as f:
     result = json.load(f)
@@ -6,26 +7,26 @@ with open("check_result.json") as f:
 subject = result.get("email_subject", "AI Act 标准变化通知")
 body_text = result.get("email_body", "")
 
-payload = json.dumps({
+payload = {
     "from": "AI Act Monitor <onboarding@resend.dev>",
-    "to": [os.environ["TO_EMAILS"]],
+    "to": os.environ["NOTIFY_EMAIL"].split(","),
     "subject": subject,
     "text": body_text,
-}).encode()
+}
 
-req = urllib.request.Request(
+headers = {
+    "Authorization": "Bearer " + os.environ["RESEND_API_KEY"],
+    "Content-Type": "application/json",
+}
+
+response = requests.post(
     "https://api.resend.com/emails",
-    data=payload,
-    headers={
-        "Authorization": "Bearer " + os.environ["RESEND_API_KEY"],
-        "Content-Type": "application/json",
-    },
+    headers=headers,
+    json=payload,
 )
-try:
-    with urllib.request.urlopen(req) as resp:
-        print("Email sent:", resp.read().decode())
-except urllib.error.HTTPError as e:
-    print("Failed:", e.code, e.read().decode())
-    raise
-print("Sending to:", os.environ["NOTIFY_EMAIL"])
-print("API Key prefix:", os.environ["RESEND_API_KEY"][:8])  # 只打印前8位
+
+print(response.status_code)
+print(response.text)
+
+if response.status_code != 200:
+    raise Exception(f"Failed to send email: {response.text}")
