@@ -1,13 +1,13 @@
 {
-  "fetched_at": "2026-05-20T07:38:16.999670+00:00",
+  "fetched_at": "2026-05-20T07:42:39.129993+00:00",
   "stage_counts": {
     "stage_10": 2,
     "stage_20": 4,
     "stage_40": 1,
     "stage_50": 1,
-    "stage_60_published": 1,
+    "stage_60_published": 0,
     "cited_ojeu": 0,
-    "total_standards": 6
+    "total_standards": 7
   },
   "changelog": [],
   "page_hash": "29a82349f8400196",
