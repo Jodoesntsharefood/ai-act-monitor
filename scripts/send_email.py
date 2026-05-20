@@ -8,7 +8,7 @@ body_text = result.get("email_body", "")
 
 payload = json.dumps({
     "from": "AI Act Monitor <onboarding@resend.dev>",
-    "to": [os.environ["NOTIFY_EMAIL"]],
+    "to": [os.environ["TO_EMAILS"]],
     "subject": subject,
     "text": body_text,
 }).encode()
